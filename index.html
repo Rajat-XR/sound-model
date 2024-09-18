@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rajat ML Model</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="model">
+        <h1>Rajat Sound Detector</h1>
+        <!-- <div>Teachable Machine Audio Model</div> -->
+        <button type="button" onclick="init()">Start</button>
+        <div id="label-container"></div>
+        <div id="waiting-message" style="display: none;">Waiting for audio permission...</div>
+        <div id="message-container"></div>
+    </div>
+</body>
+<script type="text/javascript">
+    const URL = "https://teachablemachine.withgoogle.com/models/8_8LP_M4t/";
+
+    async function createModel() {
+        const checkpointURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+
+        const recognizer = speechCommands.create(
+            "BROWSER_FFT",
+            undefined,
+            checkpointURL,
+            metadataURL
+        );
+
+        await recognizer.ensureModelLoaded();
+
+        return recognizer;
+    }
+
+    async function init() {
+        const waitingMessage = document.getElementById("waiting-message");
+        waitingMessage.style.display = "block";
+        const recognizer = await createModel();
+        const classLabels = recognizer.wordLabels(); // get class labels
+        const labelContainer = document.getElementById("label-container");
+        const messageContainer = document.getElementById("message-container");
+
+        for (let i = 0; i < classLabels.length; i++) {
+            labelContainer.appendChild(document.createElement("div"));
+        }
+
+        recognizer.listen(result => {
+            waitingMessage.style.display = "none";
+
+            const scores = result.scores;
+
+            let message = ""; // Variable to store the message to display
+            for (let i = 0; i < classLabels.length; i++) {
+                const classPrediction = classLabels[i] + ": " + result.scores[i].toFixed(2);
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+
+                // Check if score is greater than 0.95 and match specific labels (background noise, clap, whistle)
+                if (result.scores[i] > 0.98 && (classLabels[i] === "Background Noise" || classLabels[i] === "Clap" || classLabels[i] === "Whistle")) {
+                    message = `${classLabels[i]}`;
+                }
+            }
+
+            // Display message if any condition matches
+            if (message == "Background Noise") {
+                messageContainer.innerHTML = "Background Noise";
+            }
+            if (message == "Clap" ) {
+                messageContainer.innerHTML = "Clap 👏";
+            }
+            if (message == "Whistle") {
+                messageContainer.innerHTML = "Whistle 😙";
+            }
+        
+        }, {
+            includeSpectrogram: true,
+            probabilityThreshold: 0.75,
+            invokeCallbackOnNoiseAndUnknown: true,
+            overlapFactor: 0.20
+        });
+    }
+</script>
+
+</html>
